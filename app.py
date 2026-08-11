@@ -106,16 +106,22 @@ with st.expander("🔧 Diagnostics (use this if results are empty)"):
 
         st.write("**1. Odds API**")
         try:
-            props = _odds_api.get_all_player_props()
+            props, odds_errors = _odds_api.get_all_player_props_verbose()
             st.write(f"Player props fetched: **{len(props)} rows**")
             if not props.empty:
                 st.write("Sample markets found:", list(props['market'].unique()[:10]))
                 st.write("Sample players found:", list(props['player'].unique()[:10]))
-            else:
+            if odds_errors:
+                st.write(f"**{len(odds_errors)} issue(s) encountered while fetching odds:**")
+                for err in odds_errors[:15]:  # cap so the page doesn't get huge
+                    st.code(err)
+                if len(odds_errors) > 15:
+                    st.caption(f"...and {len(odds_errors) - 15} more.")
+            if props.empty and not odds_errors:
                 st.warning(
-                    "Odds are empty. Likely causes: no upcoming AFL events right now "
-                    "(check the AFL fixture - regular season is roughly March-September), "
-                    "or your bookmakers/plan don't offer player prop markets for AFL."
+                    "Odds are empty with no specific errors logged. Likely causes: no "
+                    "upcoming AFL events right now, or your bookmakers/plan don't offer "
+                    "player prop markets for AFL."
                 )
         except Exception as e:
             st.error(f"Error fetching odds: {e}")
@@ -158,3 +164,4 @@ st.caption(
     "Poisson estimate; validate it against historical results before staking real money. "
     "Gambling involves financial risk."
 )
+

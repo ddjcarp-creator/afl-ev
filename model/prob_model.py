@@ -69,3 +69,20 @@ def model_prop_probability(recent_games: pd.DataFrame, stat_col: str,
     result = prob_over_under(lam, line)
     result["lambda"] = lam
     return result
+
+
+def prob_at_least_one(lam: float) -> float:
+    """
+    Probability of at least one occurrence (e.g. kicking at least 1 goal),
+    used for the anytime goalscorer market: P(X >= 1) = 1 - e^(-lambda).
+    """
+    if np.isnan(lam):
+        return np.nan
+    return 1 - np.exp(-lam)
+
+
+def model_anytime_probability(recent_games: pd.DataFrame, stat_col: str,
+                               opponent_adjustment: float = 1.0) -> dict:
+    """Convenience wrapper for the anytime goalscorer market."""
+    lam = estimate_lambda(recent_games, stat_col, opponent_adjustment)
+    return {"prob_yes": prob_at_least_one(lam), "lambda": lam}

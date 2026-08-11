@@ -129,14 +129,20 @@ with st.expander("🔧 Diagnostics (use this if results are empty)"):
 
         st.write("**2. Player stats**")
         try:
-            stats = _stats_data.load_player_stats()
+            stats, stats_errors = _stats_data.scrape_all_teams_verbose()
             st.write(f"Player stats loaded: **{len(stats)} rows**")
             if not stats.empty:
                 st.write("Sample players in stats:", list(stats['player'].unique()[:10]))
-            else:
+            if stats_errors:
+                st.write(f"**{len(stats_errors)} issue(s) encountered while scraping stats:**")
+                for err in stats_errors[:15]:
+                    st.code(err)
+                if len(stats_errors) > 15:
+                    st.caption(f"...and {len(stats_errors) - 15} more.")
+            if stats.empty and not stats_errors:
                 st.warning(
-                    "Stats are empty. The AFL Tables scraper likely isn't matching the "
-                    "live page structure - see the note at the top of data_sources/stats_data.py."
+                    "Stats are empty with no specific errors logged - unexpected, "
+                    "worth re-running or checking data_sources/stats_data.py directly."
                 )
         except Exception as e:
             st.error(f"Error loading stats: {e}")
@@ -164,4 +170,3 @@ st.caption(
     "Poisson estimate; validate it against historical results before staking real money. "
     "Gambling involves financial risk."
 )
-

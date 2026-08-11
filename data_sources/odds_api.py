@@ -97,3 +97,42 @@ def get_all_player_props() -> pd.DataFrame:
     if not all_props:
         return pd.DataFrame()
     return pd.concat(all_props, ignore_index=True)
+
+
+def get_all_player_props_verbose():
+    """
+    Same as get_all_player_props(), but returns (DataFrame, list_of_errors)
+    instead of silently printing failures - used by the Diagnostics panel so
+    errors show up in the browser instead of only in server logs.
+    """
+    errors = []
+    try:
+        events = get_upcoming_events()
+    except requests.HTTPError as e:
+        errors.append(f"get_upcoming_events failed: {e} - response body: {getattr(e.response, 'text', '')[:300]}")
+        return pd.DataFrame(), errors
+    except Exception as e:
+        errors.append(f"get_upcoming_events failed (non-HTTP error): {e}")
+        return pd.DataFrame(), errors
+
+    if not events:
+        errors.append("get_upcoming_events returned an empty list - no events, even though this should exist per your manual test. Possible cause: sport key or API key mismatch between what the app is using and what you tested manually.")
+        return pd.DataFrame(), errors
+
+    all_props = []
+    for event in events:
+        try:
+            df = get_player_props_for_event(event["id"])
+            if not df.empty:
+                all_props.append(df)
+            else:
+                errors.append(f"Event {event.get('id')} ({event.get('home_team')} v {event.get('away_team')}): returned 0 rows (no bookmakers/markets in response for this event yet)")
+        except requests.HTTPError as e:
+            body = getattr(e.response, 'text', '')[:300]
+            errors.append(f"Event {event.get('id')}: HTTP error - {e} - response body: {body}")
+        except Exception as e:
+            errors.append(f"Event {event.get('id')}: unexpected error - {e}")
+
+    if not all_props:
+        return pd.DataFrame(), errors
+    return pd.concat(all_props, ignore_index=True), errors

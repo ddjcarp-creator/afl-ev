@@ -8,7 +8,7 @@ https://the-odds-api.com/liveapi/guides/v4/#historical-odds
 """
 import requests
 import pandas as pd
-from config import ODDS_API_KEY, ODDS_API_BASE_URL, ODDS_API_SPORT_KEY
+from config import ODDS_API_KEY, ODDS_API_BASE_URL, ODDS_API_SPORT_KEY, BOOKMAKER_FILTER
 
 # AFL player prop markets from The Odds API (api.the-odds-api.com - note the
 # hyphenated domain; there's a separate, differently-priced product at the
@@ -31,8 +31,6 @@ from config import ODDS_API_KEY, ODDS_API_BASE_URL, ODDS_API_SPORT_KEY
 LINE_PROP_MARKETS = ["player_disposals", "player_goals_scored_over"]
 ANYTIME_PROP_MARKETS = ["player_goal_scorer_anytime"]
 
-REGION = "au"  # Australian bookmakers
-
 
 def get_upcoming_events():
     """Get list of upcoming AFL matches with event IDs (needed to fetch props)."""
@@ -47,13 +45,16 @@ def get_player_props_for_event(event_id: str) -> pd.DataFrame:
     Fetch player prop odds for a single event - both the line-based market
     (player_disposals, has Over/Under) and the anytime binary market
     (player_goal_scorer_anytime, single "Yes" price per player).
+    Filtered to BOOKMAKER_FILTER (config.py) - using the "bookmakers" param
+    instead of "regions" also reduces API credit usage since you're only
+    paying for the books you actually want.
     Returns a tidy DataFrame: player, market, line, side, price, bookmaker.
     """
     all_markets = LINE_PROP_MARKETS + ANYTIME_PROP_MARKETS
     url = f"{ODDS_API_BASE_URL}/sports/{ODDS_API_SPORT_KEY}/events/{event_id}/odds"
     params = {
         "apiKey": ODDS_API_KEY,
-        "regions": REGION,
+        "bookmakers": ",".join(BOOKMAKER_FILTER),
         "markets": ",".join(all_markets),
         "oddsFormat": "decimal",
     }

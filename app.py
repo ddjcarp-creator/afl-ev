@@ -99,6 +99,59 @@ else:
         st.dataframe(results_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
+with st.expander("🔧 Diagnostics (use this if results are empty)"):
+    st.caption("Runs each pipeline stage separately so you can see exactly where data is being lost.")
+    if st.button("Run diagnostics"):
+        from data_sources import odds_api as _odds_api, stats_data as _stats_data
+
+        st.write("**1. Odds API**")
+        try:
+            props = _odds_api.get_all_player_props()
+            st.write(f"Player props fetched: **{len(props)} rows**")
+            if not props.empty:
+                st.write("Sample markets found:", list(props['market'].unique()[:10]))
+                st.write("Sample players found:", list(props['player'].unique()[:10]))
+            else:
+                st.warning(
+                    "Odds are empty. Likely causes: no upcoming AFL events right now "
+                    "(check the AFL fixture - regular season is roughly March-September), "
+                    "or your bookmakers/plan don't offer player prop markets for AFL."
+                )
+        except Exception as e:
+            st.error(f"Error fetching odds: {e}")
+            props = None
+
+        st.write("**2. Player stats**")
+        try:
+            stats = _stats_data.load_player_stats()
+            st.write(f"Player stats loaded: **{len(stats)} rows**")
+            if not stats.empty:
+                st.write("Sample players in stats:", list(stats['player'].unique()[:10]))
+            else:
+                st.warning(
+                    "Stats are empty. The AFL Tables scraper likely isn't matching the "
+                    "live page structure - see the note at the top of data_sources/stats_data.py."
+                )
+        except Exception as e:
+            st.error(f"Error loading stats: {e}")
+            stats = None
+
+        st.write("**3. Name overlap between odds and stats**")
+        if props is not None and stats is not None and not props.empty and not stats.empty:
+            odds_players = set(p.lower() for p in props['player'].dropna().unique())
+            stats_players = set(p.lower() for p in stats['player'].dropna().unique())
+            overlap = odds_players & stats_players
+            st.write(f"Players in odds: **{len(odds_players)}**, players in stats: **{len(stats_players)}**")
+            st.write(f"Matching players: **{len(overlap)}**")
+            if len(overlap) == 0:
+                st.warning(
+                    "No name overlap. Player name formatting likely differs between the "
+                    "odds API (e.g. 'M. Bontempelli') and AFL Tables (e.g. 'Marcus Bontempelli')."
+                )
+        else:
+            st.caption("Skipped - need both odds and stats to be non-empty first.")
+
+st.markdown("---")
 st.caption(
     "⚠️ This tool surfaces model output for informational purposes only - it does not "
     "place bets and isn't financial advice. The probability model is a simplified "
